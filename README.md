@@ -1,2 +1,9 @@
-# jcos
-JCOS - Chief of Staff mobile web app
+# JCOS – Chief of Staff
+
+Joshua Ediale's mobile web app (installable to the home screen). Hosted on Netlify at https://jcos.netlify.app and deployed automatically from the `main` branch.
+
+- `index.html` – the whole app (screens, styles, scripts)
+- `sw.js` – offline cache; bump `CACHE` on every release
+- `manifest.webmanifest` + `icon-*.png` – home-screen install and icons
+
+The app talks to the "Chief of staff API" Google Apps Script backend. The backend link and access key are entered on the phone and stored there only, never in this repository.
