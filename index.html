@@ -535,8 +535,9 @@ a{color:var(--gold2)}
     if (!ib.length) empty(ulb, 'No new emails logged yet. The watcher checks every 5 minutes.');
     var BTN = {log_payment: ['payment', 'Log payment'], add_task: ['task', 'Add task'], add_event: ['event', 'Add to calendar'], handoff: ['handoff', 'Hand off']};
     var MAX = Math.min(4, Number(store.get('cos_inbox_max')) || 4); $('t-inbox-max').value = String(MAX);
-    var needs = function (r) { return !/^Done/.test(r.Status || '') && (r['Act?'] === 'Yes' || r.Category === 'Urgent'); };
-    var open_ = ib.filter(needs), shown = open_.slice(0, MAX), rest = open_.slice(MAX);
+    var RANK = {'Urgent': 0, 'Needs reply': 1};
+    var open_ = ib.filter(function (r) { return !/^Done/.test(r.Status || ''); })
+      .map(function (r, i) { return [r, i]; }).sort(function (a, b) { return ((RANK[a[0].Category] != null ? RANK[a[0].Category] : (a[0]['Act?'] === 'Yes' ? 2 : 3)) - (RANK[b[0].Category] != null ? RANK[b[0].Category] : (b[0]['Act?'] === 'Yes' ? 2 : 3))) || a[1] - b[1]; }).map(function (x) { return x[0]; }), shown = open_.slice(0, MAX), rest = open_.slice(MAX);
     if (ib.length && !shown.length) empty(ulb, 'Nothing needs you right now.');
     var more = $('t-inbox-more'), restBox = $('t-inbox-rest'); restBox.replaceChildren();
     more.hidden = !rest.length;
