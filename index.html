@@ -196,9 +196,15 @@ a{color:var(--gold2)}
   <section class="view" id="v-setup">
     <div class="card setup">
       <h2 class="serif">Connect your Chief of Staff</h2>
-      <p>Paste the Web app URL and the access key from your Apps Script setup. They stay on this phone only.</p>
+      <p><b>Quickest:</b> open JCOS where it's already logged in, tap <b>Copy login code</b> (on the Today screen, or at the bottom of the Add screen), then paste it here.</p>
+      <form id="f-code">
+        <label>Login code<input name="code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your login code" required></label>
+        <button class="btn" type="submit">Log in</button>
+        <p class="msg" id="m-code"></p>
+      </form>
+      <p style="margin-top:22px">Or enter your web app URL and access key. They stay on this phone only.</p>
       <form id="f-setup">
-        <label>Web app URL<input name="url" type="url" placeholder="https://script.google.com/macros/s/…/exec" required></label>
+        <label>Web app URL<input name="url" type="url" value="https://script.google.com/macros/s/AKfycbzWqf6hZCmf3GLizeRKynws9jarkF5DfyHuQIEC0touN_A1N_P5KhFw8KMXwA636Adb/exec" placeholder="https://script.google.com/macros/s/…/exec" required></label>
         <label>Access key<input name="key" type="password" autocomplete="off" required></label>
         <button class="btn" type="submit">Connect</button>
         <p class="msg" id="m-setup"></p>
@@ -231,6 +237,11 @@ a{color:var(--gold2)}
     <div class="card">
       <p class="label">Priority today</p>
       <ul class="list" id="t-tasks"></ul>
+    </div>
+    <div class="card" id="t-install" hidden>
+      <p class="label">Using JCOS from your home screen?</p>
+      <p class="sub" style="margin:0 0 10px">Your home-screen app keeps its own login. Copy this code, open JCOS from the home screen and paste it there.</p>
+      <div class="acts"><button class="abtn pri" id="copy-login-2" type="button">Copy login code</button></div>
     </div>
     <div class="card" id="t-blog-card" hidden>
       <div style="display:flex;justify-content:space-between;align-items:center"><p class="label" style="margin:0">Today's blog post</p><a class="chip" href="https://blog.joshuaediale.com/" target="_blank" rel="noopener">Music Notes</a></div>
@@ -365,7 +376,7 @@ a{color:var(--gold2)}
     </div>
     <div class="card">
       <p class="label">Settings</p>
-      <p class="sub">Connected to your Google Sheets. <a href="#" id="disconnect">Disconnect this phone</a></p>
+      <p class="sub">Connected to your Google Sheets. <a href="#" id="copy-login">Copy login code</a> · <a href="#" id="disconnect">Disconnect this phone</a></p>
     </div>
   </section>
 </div>
@@ -858,6 +869,27 @@ a{color:var(--gold2)}
       if (!r.ok) throw new Error(r.error);
       store.set('cos_url', u); store.set('cos_key', k); D = r; store.set('cos_cache', JSON.stringify(r)); start();
     }).catch(function (e) { cfg = {url: null, key: null}; alertMsg('m-setup', e.message === 'bad_key' ? 'The access key is wrong.' : 'Could not connect. Check the URL and that the web app is deployed for "Anyone".', true); });
+  });
+  function loginCode() { return btoa(unescape(encodeURIComponent(JSON.stringify({u: store.get('cos_url'), k: store.get('cos_key')})))); }
+  function copyLogin(btn, ev) {
+    if (ev) ev.preventDefault();
+    var code = loginCode(), done = function () { btn.textContent = 'Login code copied'; };
+    if (navigator.clipboard) navigator.clipboard.writeText(code).then(done, function () { prompt('Copy this login code:', code); });
+    else prompt('Copy this login code:', code);
+  }
+  $('copy-login').addEventListener('click', function (ev) { copyLogin(ev.currentTarget, ev); });
+  $('copy-login-2').addEventListener('click', function (ev) { copyLogin(ev.currentTarget, ev); });
+  var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  if (!standalone && store.get('cos_key')) $('t-install').hidden = false;
+  $('f-code').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var s; try { s = JSON.parse(decodeURIComponent(escape(atob(ev.target.code.value.trim())))); } catch (e) { s = null; }
+    if (!s || !s.u || !s.k) return alertMsg('m-code', 'That code is not complete. Copy it again and paste the whole thing.', true);
+    cfg = {url: s.u, key: s.k}; alertMsg('m-code', 'Checking…');
+    api('GET').then(function (r) {
+      if (!r.ok) throw new Error(r.error);
+      store.set('cos_url', s.u); store.set('cos_key', s.k); D = r; store.set('cos_cache', JSON.stringify(r)); start();
+    }).catch(function (e) { cfg = {url: null, key: null}; alertMsg('m-code', e.message === 'bad_key' ? 'That login code has an old access key. Copy a fresh one.' : 'Could not connect. Check your internet and try again.', true); });
   });
   $('disconnect').addEventListener('click', function (ev) { ev.preventDefault(); ['cos_url', 'cos_key', 'cos_cache'].forEach(store.del); location.reload(); });
 
