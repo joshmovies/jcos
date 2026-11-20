@@ -232,6 +232,10 @@ a{color:var(--gold2)}
       <p class="label">Priority today</p>
       <ul class="list" id="t-tasks"></ul>
     </div>
+    <div class="card" id="t-blog-card" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:center"><p class="label" style="margin:0">Today's blog post</p><a class="chip" href="https://blog.joshuaediale.com/" target="_blank" rel="noopener">Music Notes</a></div>
+      <div id="t-blog"></div>
+    </div>
     <div class="card" id="t-inbox-card">
       <div style="display:flex;justify-content:space-between;align-items:center"><p class="label" style="margin:0">Inbox watch</p><span style="display:flex;gap:6px;align-items:center"><select class="ibmax" id="t-inbox-max" aria-label="Emails to show"><option value="2">Show 2</option><option value="3">Show 3</option><option value="4">Show 4</option></select><span class="chip" id="t-inbox-mode"></span></span></div>
       <ul class="list" id="t-inbox"></ul>
@@ -430,10 +434,28 @@ a{color:var(--gold2)}
       if (!quiet) { $('stale').hidden = false; $('stale').textContent = D ? 'Offline. Showing data from ' + when(D.fetched) + '.' : 'Could not reach your Chief of Staff. Check your connection.'; }
     }).then(function () { $('refresh').classList.remove('spin'); });
   }
-  $('refresh').addEventListener('click', function () { load(); });
+  $('refresh').addEventListener('click', function () { load(); loadBlog(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') loadBlog(); });
+  loadBlog();
   $('t-inbox-max').addEventListener('change', function (e) { store.set('cos_inbox_max', e.target.value); render(); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') load(true); });
 
+
+  // ---------- Blog card (reads the public blog feed) ----------
+  function loadBlog() {
+    fetch('https://blog.joshuaediale.com/posts.json', {cache: 'no-store'}).then(function (r) { return r.json(); }).then(function (list) {
+      var p = list && list[0]; if (!p) return;
+      var box = $('t-blog'), card = $('t-blog-card'); box.replaceChildren(); card.hidden = false;
+      var a = el('a', 'msubj', p.title); a.href = p.url; a.target = '_blank'; a.rel = 'noopener';
+      box.append(el('p', 'mone', p.date === lagos() ? 'Published today' : 'Latest, ' + p.date), a);
+      if (p.why) box.append(el('p', 'swhy', 'Why this topic: ' + p.why));
+      var row = el('div', 'acts');
+      var rd = el('a', 'abtn pri', 'Read'); rd.href = p.url; rd.target = '_blank'; rd.rel = 'noopener';
+      var wa = el('a', 'abtn', 'Share on WhatsApp'); wa.href = 'https://wa.me/?text=' + encodeURIComponent(p.title + ' ' + p.url); wa.target = '_blank'; wa.rel = 'noopener';
+      var cp = el('button', 'abtn', 'Copy link'); cp.addEventListener('click', function () { if (navigator.clipboard) navigator.clipboard.writeText(p.url).then(function () { cp.textContent = 'Link copied'; }); });
+      row.append(rd, wa, cp); box.append(row);
+    }).catch(function () {});
+  }
   // ---------- Render ----------
   function paceRows() {
     var today = lagos(), out = [];
