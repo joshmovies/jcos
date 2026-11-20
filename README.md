@@ -7,3 +7,5 @@ Joshua Ediale's mobile web app (installable to the home screen). Hosted on Netli
 - `manifest.webmanifest` + `icon-*.png` – home-screen install and icons
 
 The app talks to the "Chief of staff API" Google Apps Script backend. The backend link and access key are entered on the phone and stored there only, never in this repository.
+
+The repository is public so that Netlify's free plan publishes every push to `main`.
