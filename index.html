@@ -159,6 +159,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);border-col
 .abtn:active{transform:scale(.94)}
 .abtn.pri{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1b1408;border:0;font-weight:600}
 .abtn:disabled{opacity:.6}
+.abtn.ok{border-color:var(--ok);color:var(--ok)}
 .list li.mail{display:block;padding:14px 0}
 .mtop{display:flex;align-items:center;gap:8px;min-width:0}
 .mfrom{flex:1;min-width:0;font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -475,6 +476,24 @@ a{color:var(--gold2)}
     });
     return b;
   }
+  // Done / Discard: the card leaves the box at once; the sheet is updated in the background.
+  function clearBtn(r, what, label) {
+    var b = el('button', 'abtn' + (what === 'attended' ? ' ok' : ''), label);
+    b.addEventListener('click', function () {
+      var prev = r.Status, li = b.closest('li');
+      r.Status = 'Done: ' + (what === 'attended' ? 'Attended' : 'Dismissed');
+      if (li) { li.style.transition = 'opacity .25s, transform .25s'; li.style.opacity = '0'; li.style.transform = 'translateX(40px)'; }
+      setTimeout(render, 250);
+      if (what === 'attended') burst();
+      api('POST', {action: 'inboxAction', data: {id: r['Message ID'], do: what}}).then(function (res) {
+        if (!res.ok) throw new Error(res.error);
+      }).catch(function () {
+        r.Status = prev; render();
+        $('stale').hidden = false; $('stale').textContent = 'Could not clear that email. Check your connection and try again.';
+      });
+    });
+    return b;
+  }
   function render() {
     if (!D) return;
     var today = lagos(), S = D.summary || {};
@@ -517,7 +536,7 @@ a{color:var(--gold2)}
     var BTN = {log_payment: ['payment', 'Log payment'], add_task: ['task', 'Add task'], add_event: ['event', 'Add to calendar'], handoff: ['handoff', 'Hand off']};
     var MAX = Math.min(4, Number(store.get('cos_inbox_max')) || 4); $('t-inbox-max').value = String(MAX);
     var needs = function (r) { return !/^Done/.test(r.Status || '') && (r['Act?'] === 'Yes' || r.Category === 'Urgent'); };
-    var open_ = ib.filter(needs), shown = open_.slice(0, MAX), rest = ib.filter(function (r) { return shown.indexOf(r) < 0; });
+    var open_ = ib.filter(needs), shown = open_.slice(0, MAX), rest = ib.filter(function (r) { return shown.indexOf(r) < 0 && !/^Done: Dismissed/.test(r.Status || ''); });
     if (ib.length && !shown.length) empty(ulb, 'Nothing needs you right now.');
     var more = $('t-inbox-more'), restBox = $('t-inbox-rest'); restBox.replaceChildren();
     more.hidden = !rest.length;
@@ -566,8 +585,8 @@ a{color:var(--gold2)}
         var bt = BTN[r['Action type']];
         if (bt) row.append(actBtn(r, bt[0], bt[1], true));
         if (r['Action type'] !== 'add_task') row.append(actBtn(r, 'task', 'Add task', false));
-        row.append(actBtn(r, 'dismiss', 'Dismiss', false));
       }
+      if (!done) row.append(clearBtn(r, 'attended', '✓ Done'), clearBtn(r, 'dismiss', 'Discard'));
       if (row.childNodes.length) li.append(row);
       ulb.append(li);
     });
