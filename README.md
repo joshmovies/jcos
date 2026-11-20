@@ -1,6 +1,6 @@
 # JCOS – Chief of Staff
 
-Joshua Ediale's mobile web app (installable to the home screen). Hosted on Netlify at https://jcos.netlify.app and deployed automatically from the `main` branch.
+Joshua Ediale's mobile web app (installable to the home screen). Hosted on GitHub Pages at https://jcos.joshuaediale.com and published automatically from the `main` branch (`.github/workflows/pages.yml`). The old Netlify address (jcos.netlify.app) forwards to the new one and hands the saved login across; Netlify builds are stopped.
 
 - `index.html` – the whole app (screens, styles, scripts)
 - `sw.js` – offline cache; bump `CACHE` on every release

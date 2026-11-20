@@ -387,6 +387,27 @@ a{color:var(--gold2)}
     set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
     del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
+  // ---------- Move from jcos.netlify.app to jcos.joshuaediale.com ----------
+  var NEW_HOME = 'https://jcos.joshuaediale.com/';
+  (function () {
+    // On the new address: take over the settings handed across by the old app, then clean the address bar.
+    var m = /^#m=(.+)$/.exec(location.hash);
+    if (m) {
+      try {
+        var s = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));
+        if (s.u) store.set('cos_url', s.u); if (s.k) store.set('cos_key', s.k); if (s.x) store.set('cos_inbox_max', s.x);
+      } catch (e) {}
+      history.replaceState(null, '', location.pathname);
+    }
+    // On the old Netlify address: once the new address is reachable, move there with the saved settings.
+    if (/netlify\.app$/.test(location.hostname)) {
+      fetch(NEW_HOME + 'manifest.webmanifest', {mode: 'no-cors', cache: 'no-store'}).then(function () {
+        var u = store.get('cos_url'), k = store.get('cos_key'), hand = '';
+        if (u && k) hand = '#m=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify({u: u, k: k, x: store.get('cos_inbox_max') || ''})))));
+        location.replace(NEW_HOME + hand);
+      }).catch(function () {});
+    }
+  })();
   var cfg = {url: store.get('cos_url'), key: store.get('cos_key')};
   var D = null, askFilter = 'all';
   var $ = function (id) { return document.getElementById(id); };
