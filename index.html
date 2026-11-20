@@ -536,11 +536,11 @@ a{color:var(--gold2)}
     var BTN = {log_payment: ['payment', 'Log payment'], add_task: ['task', 'Add task'], add_event: ['event', 'Add to calendar'], handoff: ['handoff', 'Hand off']};
     var MAX = Math.min(4, Number(store.get('cos_inbox_max')) || 4); $('t-inbox-max').value = String(MAX);
     var needs = function (r) { return !/^Done/.test(r.Status || '') && (r['Act?'] === 'Yes' || r.Category === 'Urgent'); };
-    var open_ = ib.filter(needs), shown = open_.slice(0, MAX), rest = ib.filter(function (r) { return shown.indexOf(r) < 0 && !/^Done: Dismissed/.test(r.Status || ''); });
+    var open_ = ib.filter(needs), shown = open_.slice(0, MAX), rest = open_.slice(MAX);
     if (ib.length && !shown.length) empty(ulb, 'Nothing needs you right now.');
     var more = $('t-inbox-more'), restBox = $('t-inbox-rest'); restBox.replaceChildren();
     more.hidden = !rest.length;
-    more.querySelector('summary').textContent = (open_.length - shown.length ? (open_.length - shown.length) + ' more need you · ' : '') + rest.length + ' older or handled';
+    more.querySelector('summary').textContent = rest.length + ' more waiting for you';
     rest.forEach(function (r) {
       var d = el('div', 'mini'), lk = gmailOpen(r.Link), s;
       if (lk) { s = el('a', '', r.Subject || '(no subject)'); s.href = lk; s.target = '_blank'; s.rel = 'noopener'; } else s = el('span', 's', r.Subject || '(no subject)');
