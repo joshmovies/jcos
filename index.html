@@ -232,7 +232,7 @@ a{color:var(--gold2)}
       <ul class="list" id="t-tasks"></ul>
     </div>
     <div class="card" id="t-inbox-card">
-      <div style="display:flex;justify-content:space-between;align-items:center"><p class="label" style="margin:0">Inbox watch</p><span style="display:flex;gap:6px;align-items:center"><select class="ibmax" id="t-inbox-max" aria-label="Emails to show"><option value="3">Show 3</option><option value="5">Show 5</option><option value="10">Show 10</option><option value="99">Show all</option></select><span class="chip" id="t-inbox-mode"></span></span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><p class="label" style="margin:0">Inbox watch</p><span style="display:flex;gap:6px;align-items:center"><select class="ibmax" id="t-inbox-max" aria-label="Emails to show"><option value="2">Show 2</option><option value="3">Show 3</option><option value="4">Show 4</option></select><span class="chip" id="t-inbox-mode"></span></span></div>
       <ul class="list" id="t-inbox"></ul>
       <details class="more" id="t-inbox-more" hidden><summary></summary><div id="t-inbox-rest"></div></details>
     </div>
@@ -515,7 +515,7 @@ a{color:var(--gold2)}
     $('t-inbox-mode').textContent = D.watcherAI ? 'AI on' : 'Safe mode';
     if (!ib.length) empty(ulb, 'No new emails logged yet. The watcher checks every 5 minutes.');
     var BTN = {log_payment: ['payment', 'Log payment'], add_task: ['task', 'Add task'], add_event: ['event', 'Add to calendar'], handoff: ['handoff', 'Hand off']};
-    var MAX = Number(store.get('cos_inbox_max')) || 5; $('t-inbox-max').value = String(MAX);
+    var MAX = Math.min(4, Number(store.get('cos_inbox_max')) || 4); $('t-inbox-max').value = String(MAX);
     var needs = function (r) { return !/^Done/.test(r.Status || '') && (r['Act?'] === 'Yes' || r.Category === 'Urgent'); };
     var open_ = ib.filter(needs), shown = open_.slice(0, MAX), rest = ib.filter(function (r) { return shown.indexOf(r) < 0; });
     if (ib.length && !shown.length) empty(ulb, 'Nothing needs you right now.');
