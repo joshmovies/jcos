@@ -231,7 +231,7 @@ a{color:var(--gold2)}
       <span class="flag" id="t-flag" hidden></span>
     </div>
     <div class="card" id="t-launch">
-      <p class="label">Launch: 21 November</p>
+      <p class="label" id="t-launch-label">Next launch</p>
       <div class="cd" id="t-cd"></div>
     </div>
     <div class="card">
@@ -309,7 +309,7 @@ a{color:var(--gold2)}
     <div class="card hero">
       <p class="label">Pace to ₦2m</p>
       <div id="m-chart"></div>
-      <p class="sub">Gold: earned. Dashed: the even pace to ₦2,000,000 by 18 December.</p>
+      <p class="sub">Gold: earned. Dashed: the even pace to ₦2,000,000 by 22 December.</p>
     </div>
     <div class="card">
       <p class="label">Wins · last 7 days</p>
@@ -392,7 +392,12 @@ a{color:var(--gold2)}
 <script>
 (function () {
   'use strict';
-  var GOAL = 2000000, START = Date.UTC(2026, 10, 18), DAYS = 31, LAUNCH = new Date('2026-11-21T00:00:00+01:00');
+  var GOAL = 2000000, START = Date.UTC(2026, 10, 22), DAYS = 31,
+    LAUNCHES = [
+      ['Confidence webinar: Thu 26 Nov, 7pm', new Date('2026-11-26T19:00:00+01:00')],
+      ['Execute-to-Profit launch: Sun 29 Nov', new Date('2026-11-29T00:00:00+01:00')],
+      ["Lead Singer's Mastery Blueprint launch: Tue 1 Dec", new Date('2026-12-01T00:00:00+01:00')]
+    ];
   var store = {
     get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -766,8 +771,10 @@ a{color:var(--gold2)}
 
   // ---------- Countdown ----------
   function tick() {
-    var ms = LAUNCH - Date.now(), box = $('t-cd'); box.replaceChildren();
-    if (ms <= 0) { $('t-launch').hidden = true; return; }
+    var now = Date.now(), next = LAUNCHES.filter(function (l) { return l[1] > now; })[0], box = $('t-cd'); box.replaceChildren();
+    if (!next) { $('t-launch').hidden = true; return; }
+    $('t-launch-label').textContent = next[0];
+    var ms = next[1] - now;
     [[Math.floor(ms / 864e5), 'days'], [Math.floor(ms / 36e5) % 24, 'hours'], [Math.floor(ms / 6e4) % 60, 'mins']].forEach(function (p) { var d = el('div'); d.append(el('b', '', String(p[0]).padStart(2, '0')), el('span', '', p[1])); box.append(d); });
   }
   tick(); setInterval(tick, 30000);
