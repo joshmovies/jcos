@@ -575,14 +575,20 @@ a{color:var(--gold2)}
 
     // Priority tasks: soonest first, DFY lead calls folded into one line, 4 shown, rest folded
     var open = D.tasks.filter(function (t) { return String(t.Status).toLowerCase() !== 'done'; });
-    var pri = open.filter(function (t) { return t.Due === 'Daily' || (isDate(t.Due) && t.Due <= today) || String(t.Priority) === '1'; });
+    // Daily tasks may carry a window: 'Daily', 'Daily from YYYY-MM-DD', 'Daily to YYYY-MM-DD', 'Daily from YYYY-MM-DD to YYYY-MM-DD'
+    var daily = function (t) {
+      var m = String(t.Due || '').match(/^Daily(?:\s+from\s+(\d{4}-\d{2}-\d{2}))?(?:\s+to\s+(\d{4}-\d{2}-\d{2}))?$/i);
+      if (!m) return null;
+      return (!m[1] || m[1] <= today) && (!m[2] || today <= m[2]);
+    };
+    var pri = open.filter(function (t) { var d = daily(t); if (d !== null) return d; return (isDate(t.Due) && t.Due <= today) || String(t.Priority) === '1'; });
     var LEAD = /^Contact (.+?) about DFY setup$/i, leads = pri.filter(function (t) { return LEAD.test(t.Task); });
     pri = pri.filter(function (t) { return !LEAD.test(t.Task); });
     if (leads.length) {
       var first = leads[0], n = leads.length - 1, nm = first.Task.match(LEAD)[1];
       pri.push({Task: 'Contact ' + nm + (n ? ' and ' + n + ' other' + (n > 1 ? 's' : '') : '') + ' (DFY leads)', Venture: first.Venture, Priority: first.Priority, Due: first.Due, Notes: first.Notes, _mark: first.Task});
     }
-    var when = function (t) { return t.Due === 'Daily' ? today : isDate(t.Due) ? t.Due : '9999'; };
+    var when = function (t) { return daily(t) ? today : isDate(t.Due) ? t.Due : '9999'; };
     pri.sort(function (a, b) { return when(a).localeCompare(when(b)) || (Number(a.Priority) || 9) - (Number(b.Priority) || 9); });
     var ul = $('t-tasks'); ul.replaceChildren();
     var tmore = $('t-tasks-more'), trest = $('t-tasks-rest'); trest.replaceChildren();
@@ -592,7 +598,7 @@ a{color:var(--gold2)}
     if (!pri.length) empty(ul, 'Nothing urgent. Pick your next task from the sheet.');
     function taskLi(t) {
       var late = isDate(t.Due) && t.Due < today;
-      var li = item(t.Task, [t.Venture, t.Due === 'Daily' ? 'Daily' : late ? 'Overdue · ' + t.Due : isDate(t.Due) && t.Due === today ? 'Due today' : t.Due ? 'Due ' + t.Due : '', (String(t.Notes || '').match(/^\[Rolled (\d+)x\]/) || [])[1] ? 'Moved ' + String(t.Notes).match(/^\[Rolled (\d+)x\]/)[1] + '×' : ''].filter(Boolean).join(' · '), late);
+      var li = item(t.Task, [t.Venture, daily(t) !== null ? 'Daily' : late ? 'Overdue · ' + t.Due : isDate(t.Due) && t.Due === today ? 'Due today' : t.Due ? 'Due ' + t.Due : '', (String(t.Notes || '').match(/^\[Rolled (\d+)x\]/) || [])[1] ? 'Moved ' + String(t.Notes).match(/^\[Rolled (\d+)x\]/)[1] + '×' : ''].filter(Boolean).join(' · '), late);
       var target = t._mark || t.Task;
       var b = el('button', 'tick'); b.setAttribute('aria-label', 'Mark done: ' + target);
       b.addEventListener('click', function () {
