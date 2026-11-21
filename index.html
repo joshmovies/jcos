@@ -303,6 +303,7 @@ a{color:var(--gold2)}
           <label>Type<select name="type"><option>Instruction</option><option>Task</option><option>Question</option><option>Research</option></select></label>
           <label>Priority<select name="priority"><option>Normal</option><option>Urgent</option></select></label>
         </div>
+        <label style="display:flex;gap:8px;align-items:center;margin:4px 0 10px"><input type="checkbox" name="now" style="width:auto"> Do it now (starts your Chief of Staff straight away)</label>
         <button class="btn" type="submit">Send</button>
         <p class="msg" id="m-ask"></p>
       </form>
@@ -857,7 +858,7 @@ a{color:var(--gold2)}
   }
   var products = {dfy: ['DFY AI assistant setup', 'AI Assistants'], blueprint: ["Lead Singer's Mastery Blueprint", 'JEMI'], e2p: ['Execute-to-Profit', 'Doers Republik'], coaching: ['1-1 coaching', 'JEMI'], other: ['Other', 'Other']};
   (function () { var f = $('f-ask'), ph = f.text.placeholder; f.type.addEventListener('change', function () { f.text.placeholder = f.type.value === 'Research' ? 'e.g. Cost of Facebook ads in Nigeria for a ₦50k budget. For the course launch. By Friday.' : ph; }); })();
-  wire('f-ask', 'm-ask', function (e) { var t = e.text.value.trim(); if (!t) return 'Type your instruction first.'; return {action: 'instruction', data: {text: t, type: e.type.value, priority: e.priority.value}}; }, function (e) { return e && e.type && e.type.value === 'Research' ? 'Sent. The research desk picks it up at 1:10pm daily.' : 'Sent. Your Chief of Staff picks it up at the next run.'; }, false);
+  wire('f-ask', 'm-ask', function (e) { var t = e.text.value.trim(); if (!t) return 'Type your instruction first.'; return {action: 'instruction', data: {text: t, type: e.type.value, priority: e.priority.value, now: !!(e.now && e.now.checked)}}; }, function (e) { if (e && e.now && e.now.checked) { e.now.checked = false; return 'Started. You will get a notification when it is done (usually a few minutes). If the backend is not set up yet, it waits for the next run.'; } return e && e.type && e.type.value === 'Research' ? 'Sent. The research desk picks it up at 1:10pm daily.' : 'Sent. Your Chief of Staff picks it up at the next run.'; }, false);
   wire('f-pay', 'm-add', function (e) { var a = Number(e.amount.value); if (!(a > 0)) return 'Enter the amount received.'; var p = products[e.product.value]; return {action: 'payment', data: {date: e.date.value, source: p[0], venture: p[1], customer: e.customer.value.trim(), amount: a}}; }, 'Payment logged. Well done.', true);
   wire('f-post', 'm-add', function (e) { var h = e.hook.value.trim(); if (!h) return 'Add the hook or title.'; return {action: 'post', data: {date: e.date.value, brand: e.brand.value, format: e.format.value, platforms: e.platforms.value, hook: h, link: e.link.value.trim()}}; }, 'Post logged. Keep the streak going.', true);
   wire('f-task', 'm-add', function (e) { var t = e.task.value.trim(); if (!t) return 'Type the task first.'; return {action: 'task', data: {task: t, venture: e.venture.value, priority: e.priority.value, due: e.due.value}}; }, 'Task added.', false);
