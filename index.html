@@ -243,6 +243,11 @@ a{color:var(--gold2)}
       <ul class="list" id="t-tasks"></ul>
       <details class="more" id="t-tasks-more" hidden><summary></summary><ul class="list" id="t-tasks-rest"></ul></details>
     </div>
+    <div class="card" id="t-apps-card" hidden>
+      <p class="label">Applications to approve</p>
+      <ul class="list" id="t-apps"></ul>
+      <p class="sub" style="margin:8px 0 0">Approve sends your yes to the next opportunity run. Email ones become Gmail drafts for you to send.</p>
+    </div>
     <div class="card" id="t-install" hidden>
       <p class="label">Using JCOS from your home screen?</p>
       <p class="sub" style="margin:0 0 10px">Your home-screen app keeps its own login. Copy this code, open JCOS from the home screen and paste it there.</p>
@@ -613,6 +618,30 @@ a{color:var(--gold2)}
     topN.forEach(function (t) { ul.append(taskLi(t)); });
     restN.forEach(function (t) { trest.append(taskLi(t)); });
 
+
+    // Applications to approve (Opportunities rows with Status "Draft ready")
+    var seenApps = {}; try { seenApps = JSON.parse(store.get('cos_apps_done') || '{}'); } catch (e) {}
+    var apps = (D.opps || []).filter(function (o) { return /^draft ready/i.test(o.Status || '') && !seenApps[o['Source / link'] || o.Opportunity]; });
+    var ua = $('t-apps'); ua.replaceChildren(); $('t-apps-card').hidden = !apps.length;
+    apps.forEach(function (o) {
+      var key = o['Source / link'] || o.Opportunity;
+      var li = item(o.Opportunity, [o['Value (₦)'], o['Fit (1-5)'] ? 'Fit ' + o['Fit (1-5)'] + '/5' : '', o['Next step']].filter(Boolean).join(' · '));
+      var acts = el('div', 'acts');
+      if (o['Draft link']) { var dl = el('a', 'abtn', 'Read draft'); dl.href = o['Draft link']; dl.target = '_blank'; dl.rel = 'noopener'; acts.append(dl); }
+      if (/^https?:/.test(o['Source / link'] || '')) { var jl = el('a', 'abtn', 'Job'); jl.href = o['Source / link']; jl.target = '_blank'; jl.rel = 'noopener'; acts.append(jl); }
+      [['Approve', 'Approve application', true], ['Skip', 'Skip application', false]].forEach(function (a) {
+        var b = el('button', 'abtn' + (a[2] ? ' ok' : ''), a[0]);
+        b.addEventListener('click', function () {
+          acts.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+          api('POST', {action: 'instruction', data: {text: a[1] + ': ' + o.Opportunity + ' | ' + (o['Source / link'] || ''), type: 'Instruction', priority: a[2] ? 'Urgent' : 'Normal'}}).then(function (r) {
+            if (!r.ok) throw new Error(r.error);
+            seenApps[key] = a[0]; store.set('cos_apps_done', JSON.stringify(seenApps)); if (a[2]) burst(); setTimeout(render, 300);
+          }).catch(function () { acts.querySelectorAll('button').forEach(function (x) { x.disabled = false; }); $('stale').hidden = false; $('stale').textContent = 'Could not send that. Check your connection and try again.'; });
+        });
+        acts.append(b);
+      });
+      li.querySelector('.txt').append(acts); ua.append(li);
+    });
 
     // Inbox watch
     var ib = (D.inbox || []), ulb = $('t-inbox'); ulb.replaceChildren();
