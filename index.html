@@ -148,6 +148,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);border-col
 .sugg b{color:var(--gold2);font-weight:600}
 .ibmax{font:inherit;font-size:12px;padding:2px 6px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--mut)}
 .more{margin-top:6px;border-top:1px solid var(--line)}
+.rally{margin-bottom:12px;padding:12px 14px;border-radius:var(--r);background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1b1408;font-weight:700;font-size:14px;line-height:1.45;text-align:center;letter-spacing:.2px}
+.rally b{display:block;font-size:17px;letter-spacing:.6px;margin-top:2px}
+#t-tasks-rest{list-style:none;margin:0;padding:0}
 .more summary{cursor:pointer;font-size:13px;color:var(--gold2);padding:12px 0 4px;list-style:none}
 .more summary::-webkit-details-marker{display:none}
 .more summary::before{content:'▸ ';}.more[open] summary::before{content:'▾ ';}
@@ -234,9 +237,11 @@ a{color:var(--gold2)}
       <p class="label" id="t-launch-label">Next launch</p>
       <div class="cd" id="t-cd"></div>
     </div>
+    <div class="rally" role="note">Return to the Fight, Return to action, Return to Obedience, Return to action,<b>JUMP OUT OF FEAR!!</b></div>
     <div class="card">
       <p class="label">Priority today</p>
       <ul class="list" id="t-tasks"></ul>
+      <details class="more" id="t-tasks-more" hidden><summary></summary><ul class="list" id="t-tasks-rest"></ul></details>
     </div>
     <div class="card" id="t-install" hidden>
       <p class="label">Using JCOS from your home screen?</p>
@@ -568,24 +573,39 @@ a{color:var(--gold2)}
     if (earned >= cur.pace) { flag.className = 'flag ok'; flag.textContent = 'On track with the pace line'; }
     else { flag.className = 'flag bad'; flag.textContent = naira(cur.pace - earned) + ' behind the pace line'; }
 
-    // Priority tasks
+    // Priority tasks: soonest first, DFY lead calls folded into one line, 4 shown, rest folded
     var open = D.tasks.filter(function (t) { return String(t.Status).toLowerCase() !== 'done'; });
-    var pri = open.filter(function (t) { return t.Due === 'Daily' || (isDate(t.Due) && t.Due <= today) || String(t.Priority) === '1'; })
-      .sort(function (a, b) { return (Number(a.Priority) || 9) - (Number(b.Priority) || 9) || String(a.Due).localeCompare(String(b.Due)); }).slice(0, 12);
+    var pri = open.filter(function (t) { return t.Due === 'Daily' || (isDate(t.Due) && t.Due <= today) || String(t.Priority) === '1'; });
+    var LEAD = /^Contact (.+?) about DFY setup$/i, leads = pri.filter(function (t) { return LEAD.test(t.Task); });
+    pri = pri.filter(function (t) { return !LEAD.test(t.Task); });
+    if (leads.length) {
+      var first = leads[0], n = leads.length - 1, nm = first.Task.match(LEAD)[1];
+      pri.push({Task: 'Contact ' + nm + (n ? ' and ' + n + ' other' + (n > 1 ? 's' : '') : '') + ' (DFY leads)', Venture: first.Venture, Priority: first.Priority, Due: first.Due, Notes: first.Notes, _mark: first.Task});
+    }
+    var when = function (t) { return t.Due === 'Daily' ? today : isDate(t.Due) ? t.Due : '9999'; };
+    pri.sort(function (a, b) { return when(a).localeCompare(when(b)) || (Number(a.Priority) || 9) - (Number(b.Priority) || 9); });
     var ul = $('t-tasks'); ul.replaceChildren();
+    var tmore = $('t-tasks-more'), trest = $('t-tasks-rest'); trest.replaceChildren();
+    var topN = pri.slice(0, 4), restN = pri.slice(4);
+    tmore.hidden = !restN.length;
+    tmore.querySelector('summary').textContent = restN.length + ' more priorit' + (restN.length > 1 ? 'ies' : 'y');
     if (!pri.length) empty(ul, 'Nothing urgent. Pick your next task from the sheet.');
-    pri.forEach(function (t) {
+    function taskLi(t) {
       var late = isDate(t.Due) && t.Due < today;
       var li = item(t.Task, [t.Venture, t.Due === 'Daily' ? 'Daily' : late ? 'Overdue · ' + t.Due : isDate(t.Due) && t.Due === today ? 'Due today' : t.Due ? 'Due ' + t.Due : '', (String(t.Notes || '').match(/^\[Rolled (\d+)x\]/) || [])[1] ? 'Moved ' + String(t.Notes).match(/^\[Rolled (\d+)x\]/)[1] + '×' : ''].filter(Boolean).join(' · '), late);
-      var b = el('button', 'tick'); b.setAttribute('aria-label', 'Mark done: ' + t.Task);
+      var target = t._mark || t.Task;
+      var b = el('button', 'tick'); b.setAttribute('aria-label', 'Mark done: ' + target);
       b.addEventListener('click', function () {
         b.disabled = true; b.classList.add('done'); b.textContent = '✓';
-        api('POST', {action: 'taskStatus', data: {task: t.Task, status: 'Done'}}).then(function (r) {
-          if (!r.ok) throw new Error(r.error); t.Status = 'Done'; burst(); setTimeout(render, 700);
+        api('POST', {action: 'taskStatus', data: {task: target, status: 'Done'}}).then(function (r) {
+          if (!r.ok) throw new Error(r.error);
+          D.tasks.forEach(function (x) { if (x.Task === target) x.Status = 'Done'; }); burst(); setTimeout(render, 700);
         }).catch(function () { b.disabled = false; b.classList.remove('done'); b.textContent = ''; alertMsg('m-add', 'Could not mark it done. Try again.', true); });
       });
-      li.prepend(b); ul.append(li);
-    });
+      li.prepend(b); return li;
+    }
+    topN.forEach(function (t) { ul.append(taskLi(t)); });
+    restN.forEach(function (t) { trest.append(taskLi(t)); });
 
 
     // Inbox watch
