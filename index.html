@@ -492,16 +492,23 @@ a{color:var(--gold2)}
   // ---------- Blog card (reads the public blog feed) ----------
   function loadBlog() {
     fetch('https://blog.joshuaediale.com/posts.json', {cache: 'no-store'}).then(function (r) { return r.json(); }).then(function (list) {
-      var p = list && list[0]; if (!p) return;
+      if (!list || !list.length) return;
+      var today = lagos(), todays = list.filter(function (x) { return x.date === today; }).slice(0, 3);
+      var show = todays.length ? todays : [list[0]];
       var box = $('t-blog'), card = $('t-blog-card'); box.replaceChildren(); card.hidden = false;
-      var a = el('a', 'msubj', p.title); a.href = p.url; a.target = '_blank'; a.rel = 'noopener';
-      box.append(el('p', 'mone', p.date === lagos() ? 'Published today' : 'Latest, ' + p.date), a);
-      if (p.why) box.append(el('p', 'swhy', 'Why this topic: ' + p.why));
-      var row = el('div', 'acts');
-      var rd = el('a', 'abtn pri', 'Read'); rd.href = p.url; rd.target = '_blank'; rd.rel = 'noopener';
-      var wa = el('a', 'abtn', 'Share on WhatsApp'); wa.href = 'https://wa.me/?text=' + encodeURIComponent(p.title + ' ' + p.url); wa.target = '_blank'; wa.rel = 'noopener';
-      var cp = el('button', 'abtn', 'Copy link'); cp.addEventListener('click', function () { if (navigator.clipboard) navigator.clipboard.writeText(p.url).then(function () { cp.textContent = 'Link copied'; }); });
-      row.append(rd, wa, cp); box.append(row);
+      if (todays.length > 1) box.append(el('p', 'mone', todays.length + ' posts published today'));
+      show.forEach(function (p, i) {
+        var wrap = el('div'); if (i) { wrap.style.borderTop = '1px solid var(--line)'; wrap.style.marginTop = '12px'; wrap.style.paddingTop = '12px'; }
+        var a = el('a', 'msubj', p.title); a.href = p.url; a.target = '_blank'; a.rel = 'noopener';
+        if (todays.length < 2) wrap.append(el('p', 'mone', p.date === today ? 'Published today' : 'Latest, ' + p.date));
+        wrap.append(a);
+        if (p.why) wrap.append(el('p', 'swhy', 'Why this topic: ' + p.why));
+        var row = el('div', 'acts');
+        var rd = el('a', 'abtn pri', 'Read'); rd.href = p.url; rd.target = '_blank'; rd.rel = 'noopener';
+        var wa = el('a', 'abtn', 'Share on WhatsApp'); wa.href = 'https://wa.me/?text=' + encodeURIComponent(p.title + ' ' + p.url); wa.target = '_blank'; wa.rel = 'noopener';
+        var cp = el('button', 'abtn', 'Copy link'); cp.addEventListener('click', function () { if (navigator.clipboard) navigator.clipboard.writeText(p.url).then(function () { cp.textContent = 'Link copied'; }); });
+        row.append(rd, wa, cp); wrap.append(row); box.append(wrap);
+      });
     }).catch(function () {});
   }
   // ---------- Render ----------
