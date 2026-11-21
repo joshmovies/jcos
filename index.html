@@ -492,7 +492,7 @@ a{color:var(--gold2)}
   function loadBlog() {
     fetch('https://blog.joshuaediale.com/posts.json', {cache: 'no-store'}).then(function (r) { return r.json(); }).then(function (list) {
       if (!list || !list.length) return;
-      var today = lagos(), todays = list.filter(function (x) { return x.date === today; }).slice(0, 3);
+      var today = lagos(), todays = list.filter(function (x) { return x.date === today; }).slice(0, 6);
       var show = todays.length ? todays : [list[0]];
       var box = $('t-blog'), card = $('t-blog-card'); box.replaceChildren(); card.hidden = false;
       if (todays.length > 1) box.append(el('p', 'mone', todays.length + ' posts published today'));
