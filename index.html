@@ -387,6 +387,11 @@ a{color:var(--gold2)}
     <div class="card">
       <p class="label">Settings</p>
       <p class="sub">Connected to your Google Sheets. <a href="#" id="copy-login">Copy login code</a> · <a href="#" id="disconnect">Disconnect this phone</a></p>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px">
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="snd-on"> Notification sounds</label>
+        <button class="abtn" type="button" id="snd-test">Test</button>
+      </div>
+      <p class="sub" style="margin-top:6px">Plays while JCOS is open: alarm for urgent emails, chime for emails that need a reply and new applications to approve, sparkle when you finish something. Quiet from 10pm to 6am, except urgent.</p>
     </div>
   </section>
 </div>
@@ -475,7 +480,7 @@ a{color:var(--gold2)}
     $('refresh').classList.add('spin');
     return api('GET').then(function (res) {
       if (!res.ok) throw new Error(res.error || 'error');
-      D = res; store.set('cos_cache', JSON.stringify(res)); $('stale').hidden = true; render();
+      soundForNew(res); D = res; store.set('cos_cache', JSON.stringify(res)); $('stale').hidden = true; render();
     }).catch(function (e) {
       if (String(e.message) === 'bad_key') { $('stale').hidden = false; $('stale').textContent = 'Your access key was refused. Disconnect and enter it again.'; return; }
       if (!quiet) { $('stale').hidden = false; $('stale').textContent = D ? 'Offline. Showing data from ' + when(D.fetched) + '.' : 'Could not reach your Chief of Staff. Check your connection.'; }
@@ -843,7 +848,53 @@ a{color:var(--gold2)}
 
   // ---------- Forms ----------
   function alertMsg(id, text, bad) { var m = $(id); m.className = 'msg ' + (bad ? 'err' : 'ok'); m.textContent = text; }
+  // ---------- Notification sounds (made in the browser, no sound files) ----------
+  var snd = (function () {
+    var ctx = null;
+    function on() { return store.get('cos_sound') !== 'off'; }
+    function unlock() { try { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) {} }
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) { document.addEventListener(ev, unlock, {passive: true}); });
+    function quiet() { var h = Number(new Date().toLocaleString('en-GB', {timeZone: 'Africa/Lagos', hour: '2-digit', hour12: false})); return h >= 22 || h < 6; }
+    function note(f, t, d, vol, type) {
+      var o = ctx.createOscillator(), g = ctx.createGain(); o.type = type || 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + d); o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + d + 0.05);
+    }
+    var TUNES = {
+      urgent: function () { [0, 0.32, 0.64].forEach(function (t) { note(988, t, 0.14, 0.35, 'square'); note(740, t + 0.15, 0.14, 0.35, 'square'); }); },
+      chime: function () { note(784, 0, 0.5, 0.3); note(1175, 0.14, 0.7, 0.25); },
+      done: function () { [1047, 1319, 1568].forEach(function (f, i) { note(f, i * 0.08, 0.35, 0.2, 'triangle'); }); }
+    };
+    function play(kind, force) {
+      if (!force && (!on() || (kind !== 'urgent' && quiet()))) return;
+      unlock(); if (!ctx) return;
+      try { TUNES[kind](); } catch (e) {}
+      if (kind === 'urgent' && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+    return {play: play, on: on};
+  })();
+  // Compare fresh data with what this phone has already seen, then sound once for anything new.
+  function soundForNew(res) {
+    var seen = {}, first = store.get('cos_seen') == null; try { seen = JSON.parse(store.get('cos_seen') || '{}'); } catch (e) {}
+    var kind = null, next = {};
+    (res.inbox || []).forEach(function (r) {
+      if (/^Done/.test(r.Status || '')) return;
+      var id = 'm:' + (r['Message ID'] || r.Subject + r.Checked); next[id] = 1;
+      if (!seen[id]) { if (r.Category === 'Urgent') kind = 'urgent'; else if ((r.Category === 'Needs reply' || r['Act?'] === 'Yes') && kind !== 'urgent') kind = 'chime'; }
+    });
+    (res.opps || []).forEach(function (o) {
+      if (!/^draft ready/i.test(o.Status || '')) return;
+      var id = 'a:' + (o['Source / link'] || o.Opportunity); next[id] = 1;
+      if (!seen[id] && !kind) kind = 'chime';
+    });
+    store.set('cos_seen', JSON.stringify(next));
+    if (!first && kind) snd.play(kind);
+  }
+  $('snd-on').checked = snd.on();
+  $('snd-on').addEventListener('change', function (e) { store.set('cos_sound', e.target.checked ? 'on' : 'off'); if (e.target.checked) snd.play('chime', true); });
+  $('snd-test').addEventListener('click', function () { snd.play('urgent', true); setTimeout(function () { snd.play('chime', true); }, 1300); setTimeout(function () { snd.play('done', true); }, 2500); });
   function burst() {
+    snd.play('done');
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     var fx = $('fx');
     for (var i = 0; i < 26; i++) { var p = el('i'); p.style.left = (10 + Math.random() * 80) + '%'; p.style.background = i % 3 ? '#d4a73f' : '#5cc28a'; p.style.animationDelay = Math.random() * .2 + 's'; p.style.setProperty('--dx', (Math.random() * 160 - 80) + 'px'); fx.append(p); setTimeout(function (n) { n.remove(); }.bind(null, p), 1700); }
@@ -966,6 +1017,8 @@ a{color:var(--gold2)}
     $('nav').hidden = false; $('refresh').hidden = false;
     show(store.get('cos_view') && store.get('cos_view') !== 'setup' ? store.get('cos_view') : 'today');
     render(); load();
+    // While the app is open, check for new emails every 2 minutes so the sound can play.
+    setInterval(function () { if (document.visibilityState === 'visible') load(true); }, 120000);
   }
   try { D = JSON.parse(store.get('cos_cache') || 'null'); } catch (e) { D = null; }
   if (cfg.url && cfg.key) start(); else { $('refresh').hidden = true; show('setup'); }
