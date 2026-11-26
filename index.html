@@ -408,10 +408,12 @@ a{color:var(--gold2)}
 (function () {
   'use strict';
   var GOAL = 2000000, START = Date.UTC(2026, 10, 22), DAYS = 31,
+    // Fallback only. The countdown normally reads open rows in the Tasks sheet whose Task starts with "Launch"
+    // and whose Due is a date (YYYY-MM-DD). A time in the task name such as "7pm" or "7:30pm" sets the hour.
     LAUNCHES = [
-      ['Confidence webinar: Thu 26 Nov, 7pm', new Date('2026-11-26T19:00:00+01:00')],
-      ['Execute-to-Profit launch: Sun 29 Nov', new Date('2026-11-29T00:00:00+01:00')],
-      ["Lead Singer's Mastery Blueprint launch: Tue 1 Dec", new Date('2026-12-01T00:00:00+01:00')]
+      ['Confidence webinar: Wed 2 Dec, 7pm', new Date('2026-12-02T19:00:00+01:00')],
+      ["Lead Singer's Mastery Blueprint: Thu 3 Dec", new Date('2026-12-03T00:00:00+01:00')],
+      ['Execute-to-Profit: Sun 6 Dec', new Date('2026-12-06T00:00:00+01:00')]
     ];
   var store = {
     get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -480,7 +482,7 @@ a{color:var(--gold2)}
     $('refresh').classList.add('spin');
     return api('GET').then(function (res) {
       if (!res.ok) throw new Error(res.error || 'error');
-      soundForNew(res); D = res; store.set('cos_cache', JSON.stringify(res)); $('stale').hidden = true; render();
+      soundForNew(res); D = res; store.set('cos_cache', JSON.stringify(res)); $('stale').hidden = true; render(); tick();
     }).catch(function (e) {
       if (String(e.message) === 'bad_key') { $('stale').hidden = false; $('stale').textContent = 'Your access key was refused. Disconnect and enter it again.'; return; }
       if (!quiet) { $('stale').hidden = false; $('stale').textContent = D ? 'Offline. Showing data from ' + when(D.fetched) + '.' : 'Could not reach your Chief of Staff. Check your connection.'; }
@@ -837,8 +839,23 @@ a{color:var(--gold2)}
   }
 
   // ---------- Countdown ----------
+  function launchesFromTasks() {
+    if (!D || !D.tasks) return null;
+    var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var out = D.tasks.filter(function (t) {
+      return /^launch\b/i.test(String(t.Task || '').trim()) && String(t.Status).toLowerCase() !== 'done' && /^\d{4}-\d{2}-\d{2}/.test(String(t.Due || ''));
+    }).map(function (t) {
+      var name = String(t.Task).trim().replace(/^launch\s*:?\s*/i, ''), due = String(t.Due).slice(0, 10), h = 0, m = 0, timeTxt = '';
+      var tm = name.match(/,?\s*\(?\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\)?/i);
+      if (tm) { h = Number(tm[1]) % 12 + (tm[3].toLowerCase() === 'pm' ? 12 : 0); m = Number(tm[2] || 0); timeTxt = ', ' + tm[1] + (tm[2] ? ':' + tm[2] : '') + tm[3].toLowerCase(); name = name.replace(tm[0], '').trim(); }
+      var at = new Date(due + 'T' + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':00+01:00'), dd = new Date(due + 'T12:00:00Z');
+      return [name + ': ' + DOW[dd.getUTCDay()] + ' ' + dd.getUTCDate() + ' ' + MON[dd.getUTCMonth()] + timeTxt, at];
+    }).filter(function (l) { return !isNaN(l[1]); }).sort(function (a, b) { return a[1] - b[1]; });
+    return out.length ? out : null;
+  }
   function tick() {
-    var now = Date.now(), next = LAUNCHES.filter(function (l) { return l[1] > now; })[0], box = $('t-cd'); box.replaceChildren();
+    var list = launchesFromTasks() || LAUNCHES;
+    var now = Date.now(), next = list.filter(function (l) { return l[1] > now; })[0], box = $('t-cd'); box.replaceChildren();
     if (!next) { $('t-launch').hidden = true; return; }
     $('t-launch-label').textContent = next[0];
     var ms = next[1] - now;
@@ -1020,6 +1037,7 @@ a{color:var(--gold2)}
     setInterval(function () { if (document.visibilityState === 'visible') load(true); }, 120000);
   }
   try { D = JSON.parse(store.get('cos_cache') || 'null'); } catch (e) { D = null; }
+  tick();
   if (cfg.url && cfg.key) start(); else { $('refresh').hidden = true; show('setup'); }
   window.addEventListener('resize', function () { if (D) chart(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
